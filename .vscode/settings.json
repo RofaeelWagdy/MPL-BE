@@ -1,0 +1,5 @@
+{
+    "appService.preDeployTask": "publish-release",
+    "appService.deploySubpath": "MorkosiaPrepaLeague\\bin\\Release\\net8.0\\publish",
+    "appService.defaultWebAppToDeploy": "/subscriptions/7fb73ec3-531c-4d63-a07d-0726953ed361/resourceGroups/MorkosiaPrepaLeague/providers/Microsoft.Web/sites/mpl-be"
+}
