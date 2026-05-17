@@ -63,10 +63,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # ------------------------------------------------------------------
-    # CORS
-    # Adjust origins / methods / headers to match your frontend deployment.
-    # ------------------------------------------------------------------
+    # Add CORS middleware to allow requests from the frontend
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"] if settings.is_development else [],

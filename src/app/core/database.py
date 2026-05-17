@@ -35,6 +35,14 @@ from beanie import Document, init_beanie
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
 from app.core.config import get_settings
+from app.models.activity_type import ActivityType
+from app.models.attendance_request import AttendanceRequest
+from app.models.concrete_activity import ConcreteActivity
+from app.models.league import League
+from app.models.league_ownership_state import LeagueOwnershipState
+from app.models.team import Team
+from app.models.transfer_window import TransferWindow
+from app.models.user import User
 
 if TYPE_CHECKING:
     # Import only for static analysis; avoids a circular-import at runtime.
@@ -78,22 +86,16 @@ def get_motor_client() -> motor.motor_asyncio.AsyncIOMotorClient:  # type: ignor
 # Beanie uses this list during `init_beanie()` to:
 #   - Register ODM metadata for each collection.
 #   - Validate and create any indexes declared on the model.
-#
-# Import pattern: import the class from its module, then append to this list.
-# Example (uncomment as models are added in later phases):
-#
-#   from app.models.league import League
-#   from app.models.user import User
-#   from app.models.transfer_window import TransferWindow
-#   from app.models.team import Team
-#   from app.models.league_ownership_state import LeagueOwnershipState
-#   from app.models.activity_type import ActivityType
-#   from app.models.concrete_activity import ConcreteActivity
-#   from app.models.attendance_request import AttendanceRequest
-#
+
 BEANIE_DOCUMENT_MODELS: list[type[Document]] = [
-    # Phase 2 models will be appended here progressively.
-    # Do NOT remove this list even when empty; init_beanie requires it.
+    User,
+    League,
+    TransferWindow,
+    Team,
+    LeagueOwnershipState,
+    ActivityType,
+    ConcreteActivity,
+    AttendanceRequest,
 ]
 
 

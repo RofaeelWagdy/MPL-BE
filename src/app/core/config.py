@@ -35,9 +35,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # ------------------------------------------------------------------
-    # Application meta
-    # ------------------------------------------------------------------
+    # .end Fields
     app_name: str = Field(
         default="Morkosia PrepaLeague API",
         description="Human-readable application name surfaced in OpenAPI docs.",
