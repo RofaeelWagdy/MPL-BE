@@ -10,6 +10,11 @@ services import from one place rather than re-declaring the same logic.
 """
 
 from app.core.config import Settings, get_settings  # noqa: F401 – re-exported
+from fastapi import Depends, HTTPException, Request, status
+
+from app.models.role import Role
+from app.services.current_user import CurrentUser
+from app.services.database_service import DatabaseService
 
 # ---------------------------------------------------------------------------
 # Settings dependency
@@ -33,3 +38,52 @@ from app.core.config import Settings, get_settings  # noqa: F401 – re-exported
 #
 # Then in a router:
 #   user_service: UserService = Depends(get_user_service)
+
+
+# ------------------------------------------------------------------
+# Database
+# ------------------------------------------------------------------
+
+
+def get_db() -> DatabaseService:
+    """Injects a DatabaseService into any router endpoint."""
+    return DatabaseService()
+
+
+# ------------------------------------------------------------------
+# Current user
+# ------------------------------------------------------------------
+
+
+def get_current_user(request: Request) -> CurrentUser:
+    """
+    Reads the CurrentUser object that AuthenticationMiddleware placed on
+    request.state. Returns an unauthenticated public user if nothing is set.
+    """
+    return getattr(request.state, "current_user", CurrentUser())
+
+
+# ------------------------------------------------------------------
+# Role-based authorization
+# ------------------------------------------------------------------
+
+
+def require_role(min_role: Role):
+    """
+    Dependency factory — mirrors the [MinRole] attribute from .NET.
+
+    Usage in a router:
+        current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN))
+
+    Raises 403 if the authenticated user's role is below the required level.
+    """
+
+    def check(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+        if current_user.role < min_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        return current_user
+
+    return check
