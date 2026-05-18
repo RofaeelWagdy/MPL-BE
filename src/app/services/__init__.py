@@ -1,3 +1,9 @@
+# Re-exports the most-used service classes so routers can import
+# from one place instead of knowing each module's internal path.
+#
+# Usage in a router:
+#   from app.services import DatabaseService, CurrentUser
+
 from app.services.authorization import (
     can_user_manage_target_user,
     can_user_pick_team_from_league,
