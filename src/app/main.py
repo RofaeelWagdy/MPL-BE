@@ -3,12 +3,16 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.security import APIKeyHeader
+from fastapi import Depends
 from app.core.config import get_settings
 from app.core.database import connect, disconnect
 
 settings = get_settings()
 
+dev_key_scheme = APIKeyHeader(
+    name="x-dev-key", auto_error=False, description="SuperAdmin Master Key"
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -27,6 +31,7 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
         debug=settings.debug,
         lifespan=lifespan,
+        dependencies=[Depends(dev_key_scheme)],
     )
 
     # ------------------------------------------------------------------
