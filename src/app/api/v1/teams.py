@@ -9,7 +9,12 @@ from app.models.league import League
 from app.models.league_ownership_state import LeagueOwnershipState
 from app.models.role import Role
 from app.models.team import PlayerTeamPosition, Team
-from app.models.team_scores import PlayerActivityScore, PlayerScore, TeamScore, TeamScoresResponse
+from app.models.team_scores import (
+    PlayerActivityScore,
+    PlayerScore,
+    TeamScore,
+    TeamScoresResponse,
+)
 from app.schemas.requests import PickTeamRequest
 from app.services.authorization import can_user_pick_team_from_league
 from app.services.current_user import CurrentUser
@@ -26,7 +31,9 @@ async def get_available_players(
 ):
     league = await db.get_league_by_id(league_id)
     if league is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"League '{league_id}' not found.")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"League '{league_id}' not found."
+        )
 
     all_users = await db.get_all_users_for_leagues([league_id])
     position_counts = await db.get_player_position_ownership_counts(league_id)
@@ -34,9 +41,13 @@ async def get_available_players(
     # Subtract the current user's own team selections so availability
     # reflects what they can pick, not counting their existing picks.
     if current_user.user_id:
-        position_counts = await _get_adjusted_counts(db, league_id, current_user.user_id, position_counts)
+        position_counts = await _get_adjusted_counts(
+            db, league_id, current_user.user_id, position_counts
+        )
 
-    available_positions = [p.name for p in league.team_positions] if league.team_positions else ["PLAYER"]
+    available_positions = (
+        [p.name for p in league.team_positions] if league.team_positions else ["PLAYER"]
+    )
 
     return [
         {
@@ -48,7 +59,9 @@ async def get_available_players(
             "positions": [
                 {
                     "position": pos,
-                    "is_available": _is_available(league, user.id, pos, position_counts),
+                    "is_available": _is_available(
+                        league, user.id, pos, position_counts
+                    ),
                     "current_ownership": position_counts.get(user.id, {}).get(pos, 0),
                     "ownership_cap": league.get_effective_ownership_cap(user.id, pos),
                 }
@@ -74,7 +87,9 @@ async def get_my_team(
     if window is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No transfer window found.")
 
-    team = await db.get_manager_team_for_transfer_window(league_id, window.id, current_user.user_id)
+    team = await db.get_manager_team_for_transfer_window(
+        league_id, window.id, current_user.user_id
+    )
     if team is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No team found for this window.")
 
@@ -90,7 +105,9 @@ async def get_team_scores(
 ):
     league = await db.get_league_by_id(league_id)
     if league is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"League '{league_id}' not found.")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"League '{league_id}' not found."
+        )
 
     all_windows = await db.get_all_transfer_windows(league_id)
     if not all_windows:
@@ -108,7 +125,9 @@ async def get_team_scores(
     all_activities = []
     for w in windows_to_score:
         all_teams.extend(await db.get_teams_for_transfer_window(league_id, w.id))
-        all_activities.extend(await db.get_concrete_activities_for_transfer_window(w.id))
+        all_activities.extend(
+            await db.get_concrete_activities_for_transfer_window(w.id)
+        )
 
     activity_types = await db.get_activity_types_for_league(league_id)
     all_users = await db.get_all_users_for_leagues([league_id])
@@ -120,7 +139,9 @@ async def get_team_scores(
 
     for team in all_teams:
         manager = user_map.get(team.manager_user_id)
-        manager_name = manager.full_name or manager.username if manager else team.manager_user_id
+        manager_name = (
+            manager.full_name or manager.username if manager else team.manager_user_id
+        )
 
         player_scores: dict[str, PlayerScore] = {}
         for player in team.players:
@@ -139,7 +160,11 @@ async def get_team_scores(
             if not activity_type:
                 continue
 
-            points = activity.override_points if activity.override_points is not None else activity_type.default_points
+            points = (
+                activity.override_points
+                if activity.override_points is not None
+                else activity_type.default_points
+            )
             linked = activity_type.linked_positions or []
 
             for ps in player_scores.values():
@@ -182,21 +207,30 @@ async def pick_team(
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
     if not can_user_pick_team_from_league(current_user, request.league_id):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only league members can pick teams.")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Only league members can pick teams."
+        )
 
     league = await db.get_league_by_id(request.league_id)
     if league is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"League '{request.league_id}' not found.")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"League '{request.league_id}' not found."
+        )
 
     window = await db.get_current_transfer_window(request.league_id)
     if window is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No active transfer window for this league.")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "No active transfer window for this league."
+        )
 
     team = Team(
         league_id=request.league_id,
         manager_user_id=current_user.user_id,
         transfer_window_id=window.id,
-        players=[PlayerTeamPosition(player_id=p.player_id, position=p.position) for p in request.players],
+        players=[
+            PlayerTeamPosition(player_id=p.player_id, position=p.position)
+            for p in request.players
+        ],
     )
 
     # --- Validate positional structure ---
@@ -207,7 +241,10 @@ async def pick_team(
     valid_ids = {u.id for u in all_users}
     for player in team.players:
         if player.player_id not in valid_ids:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Player '{player.player_id}' is not a member of this league.")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Player '{player.player_id}' is not a member of this league.",
+            )
 
     # --- Validate budget ---
     budget = league.get_effective_budget(current_user.user_id)
@@ -222,27 +259,38 @@ async def pick_team(
     # --- Validate ownership caps with optimistic concurrency retry ---
     max_retries = 3
     for attempt in range(max_retries):
-        ownership_state, etag = await db.get_league_ownership_state_with_etag(league.id, window.id)
+        ownership_state, etag = await db.get_league_ownership_state_with_etag(
+            league.id, window.id
+        )
 
         if ownership_state is None:
-            ownership_state = await db.initialize_league_ownership_state(league.id, window.id)
-            ownership_state, etag = await db.get_league_ownership_state_with_etag(league.id, window.id)
+            ownership_state = await db.initialize_league_ownership_state(
+                league.id, window.id
+            )
+            ownership_state, etag = await db.get_league_ownership_state_with_etag(
+                league.id, window.id
+            )
 
         _validate_ownership_caps(team, league, ownership_state, current_user.user_id)
 
-        success = await db.save_team_with_ownership_update(team, ownership_state, etag or "")
+        success = await db.save_team_with_ownership_update(
+            team, ownership_state, etag or ""
+        )
         if success:
             return team
 
         if attempt < max_retries - 1:
             await asyncio.sleep(0.1 + attempt * 0.05)
 
-    raise HTTPException(status.HTTP_409_CONFLICT, "Concurrent update conflict — please try again.")
+    raise HTTPException(
+        status.HTTP_409_CONFLICT, "Concurrent update conflict — please try again."
+    )
 
 
 # ------------------------------------------------------------------
 # Private helpers
 # ------------------------------------------------------------------
+
 
 def _is_available(
     league: League,
@@ -259,12 +307,17 @@ def _is_available(
 
 def _validate_positions(team: Team, league: League) -> None:
     if not league.team_positions:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "League has no defined team structure.")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "League has no defined team structure."
+        )
 
     # No duplicate players
     player_ids = [p.player_id for p in team.players]
     if len(player_ids) != len(set(player_ids)):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A player cannot be selected more than once per team.")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "A player cannot be selected more than once per team.",
+        )
 
     # Count by position
     counts: dict[str, int] = {}
@@ -282,7 +335,9 @@ def _validate_positions(team: Team, league: League) -> None:
     valid_positions = {p.name for p in league.team_positions}
     invalid = [pos for pos in counts if pos not in valid_positions]
     if invalid:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid positions: {invalid}")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Invalid positions: {invalid}"
+        )
 
 
 def _validate_ownership_caps(
@@ -322,7 +377,9 @@ async def _get_adjusted_counts(
     if window is None:
         return adjusted
 
-    team = await db.get_manager_team_for_transfer_window(league_id, window.id, manager_user_id)
+    team = await db.get_manager_team_for_transfer_window(
+        league_id, window.id, manager_user_id
+    )
     if team is None:
         return adjusted
 

@@ -4,10 +4,10 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-
 # ------------------------------------------------------------------
 # League
 # ------------------------------------------------------------------
+
 
 class TeamPositionSchema(BaseModel):
     name: str
@@ -32,6 +32,7 @@ class ActivityPointsLeagueConfigUpdateDto(BaseModel):
 # ------------------------------------------------------------------
 # Users
 # ------------------------------------------------------------------
+
 
 class UserRegistrationRequest(BaseModel):
     username: str = Field(min_length=3, max_length=20)
@@ -66,6 +67,7 @@ class RemoveRoleRequest(BaseModel):
 # Transfer Windows
 # ------------------------------------------------------------------
 
+
 class CreateTransferWindowRequest(BaseModel):
     start_date: datetime
     end_date: datetime
@@ -74,6 +76,7 @@ class CreateTransferWindowRequest(BaseModel):
 # ------------------------------------------------------------------
 # Teams
 # ------------------------------------------------------------------
+
 
 class PlayerSelectionDto(BaseModel):
     player_id: str
@@ -88,6 +91,7 @@ class PickTeamRequest(BaseModel):
 # ------------------------------------------------------------------
 # Activity Types
 # ------------------------------------------------------------------
+
 
 class CreateActivityTypeRequest(BaseModel):
     name: str
@@ -105,6 +109,7 @@ class UpdateActivityTypeRequest(BaseModel):
 # ------------------------------------------------------------------
 # Concrete Activities
 # ------------------------------------------------------------------
+
 
 class CreateConcreteActivityRequest(BaseModel):
     transfer_window_id: str
@@ -126,6 +131,7 @@ class AddParticipantRequest(BaseModel):
 # ------------------------------------------------------------------
 # Attendance Requests
 # ------------------------------------------------------------------
+
 
 class CreateAttendanceRequestRequest(BaseModel):
     league_id: str
