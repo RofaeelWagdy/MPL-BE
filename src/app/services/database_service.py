@@ -16,14 +16,6 @@ from app.models.user import User
 
 
 class DatabaseService:
-    """
-    The single service class for all database operations.
-    Translates CosmosDbService.cs + ICosmosDbService.cs into async Beanie queries.
-
-    No constructor arguments needed — Beanie manages the MongoDB connection globally
-    via the `init_beanie()` call in database.py (equivalent to .NET's singleton DI).
-    """
-
     # ------------------------------------------------------------------
     # Leagues
     # ------------------------------------------------------------------
@@ -55,7 +47,7 @@ class DatabaseService:
         if existing is None:
             return False
         await league.save()
-        return True
+        return league
 
     # ------------------------------------------------------------------
     # Users
