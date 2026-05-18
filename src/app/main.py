@@ -1,42 +1,24 @@
-from __future__ import annotations
+# File: src/app/main.py
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import APIKeyHeader
-from fastapi import Depends
+
 from app.core.config import get_settings
 from app.core.database import connect, disconnect
-from app.middlewares.authentication import AuthenticationMiddleware
 
 settings = get_settings()
 
-dev_key_scheme = APIKeyHeader(
-    name="x-dev-key", auto_error=False, description="SuperAdmin Master Key"
-)
 
-
-# ---------------------------------------------------------------------------
-# Lifespan context manager
-# ---------------------------------------------------------------------------
-# FastAPI's recommended approach for startup / shutdown logic since v0.93.
-# Replaces the deprecated @app.on_event("startup") pattern.
-# ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan: runs setup before yield, teardown after."""
-    # --- Startup ---
+    """Startup: open MongoDB connection. Shutdown: close it cleanly."""
     await connect()
-    yield  # Application is running and serving requests here.
-    # --- Shutdown ---
+    yield
     await disconnect()
 
 
-# ---------------------------------------------------------------------------
-# Application factory
-# ---------------------------------------------------------------------------
 def create_app() -> FastAPI:
-    # Construct and configure the FastAPI application instance.
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
@@ -45,10 +27,11 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
         debug=settings.debug,
         lifespan=lifespan,
-        dependencies=[Depends(dev_key_scheme)],
     )
 
-    # Add CORS middleware to allow requests from the frontend
+    # ------------------------------------------------------------------
+    # CORS
+    # ------------------------------------------------------------------
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"] if settings.is_development else [],
@@ -57,10 +40,17 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # --- Authentication middleware ---
+    # ------------------------------------------------------------------
+    # Authentication middleware
+    # Populates request.state.current_user on every request.
+    # Must be added after CORSMiddleware.
+    # ------------------------------------------------------------------
+    from app.middlewares.authentication import AuthenticationMiddleware
     app.add_middleware(AuthenticationMiddleware)
 
-    # --- Routers ---
+    # ------------------------------------------------------------------
+    # Routers
+    # ------------------------------------------------------------------
     from app.api.v1 import (
         activity_types,
         attendance_requests,
@@ -79,15 +69,14 @@ def create_app() -> FastAPI:
     app.include_router(concrete_activities.router)
     app.include_router(attendance_requests.router)
 
+    # ------------------------------------------------------------------
+    # Health check
+    # ------------------------------------------------------------------
+    @app.get("/", tags=["Health"])
+    async def health_check():
+        return {"status": "healthy", "app": settings.app_name, "version": settings.app_version}
+
     return app
 
 
-# ---------------------------------------------------------------------------
-# Module-level app instance
-# ---------------------------------------------------------------------------
-# Uvicorn / Gunicorn expect to import `app` from this module.
-# Entry point in pyproject.toml / Dockerfile:
-#   uvicorn src.app.main:app --host 0.0.0.0 --port 8080
-
-#   python -m uvicorn app.main:app --reload
 app = create_app()
