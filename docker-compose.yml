@@ -1,0 +1,40 @@
+services:
+
+  mongo:
+    image: mongo:7
+    container_name: mpl_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: mpl
+    networks:
+      - mpl_network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mpl_api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # Override the URI so the app reaches the mongo service by name,
+      # not localhost (which would point to the api container itself).
+      MONGODB_URI: mongodb://mongo:27017
+    depends_on:
+      - mongo
+    networks:
+      - mpl_network
+
+networks:
+  mpl_network:
+    driver: bridge
+
+volumes:
+  mongo_data:

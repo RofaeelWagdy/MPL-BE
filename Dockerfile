@@ -1,45 +1,41 @@
-# Stage 1: Build
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /src
+# ---------------------------------------------------------------
+# Build stage — install dependencies into an isolated layer
+# so the final image only copies what's needed.
+# ---------------------------------------------------------------
+FROM python:3.11-slim AS builder
 
-# Copy solution and project files first (layer caching for restore)
-COPY MorkosiaPrepaLeague.sln ./
-COPY MorkosiaPrepaLeague/MorkosiaPrepaLeague.csproj MorkosiaPrepaLeague/
+WORKDIR /build
 
-# Restore dependencies
-RUN dotnet restore
+# Install dependencies into a local directory (not system-wide)
+# so we can copy only this folder into the final image.
+COPY requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install --prefix=/install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the source code
-COPY . .
 
-# Build and publish in Release mode
-RUN dotnet publish MorkosiaPrepaLeague/MorkosiaPrepaLeague.csproj \
-    -c Release \
-    -o /app/publish
+# ---------------------------------------------------------------
+# Runtime stage — lean final image
+# ---------------------------------------------------------------
+FROM python:3.11-slim
 
-# Stage 2: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
+# Copy installed packages from the build stage
+COPY --from=builder /install /usr/local
+
+# Copy application source
+COPY src/ ./src/
+
 # Create a non-root user for security
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+RUN addgroup --system appgroup \
+    && adduser --system --ingroup appgroup appuser \
+    && chown -R appuser:appgroup /app
 
-# Create /data directory for LiteDB and grant ownership BEFORE switching user
-RUN mkdir -p /data && chown -R appuser:appgroup /data
-
-# Copy published output from build stage
-COPY --from=build /app/publish .
-
-# Set ownership
-RUN chown -R appuser:appgroup /app
 USER appuser
 
-# Expose HTTP and HTTPS ports
 EXPOSE 8080
-EXPOSE 8081
 
-# Use environment variable to configure ASP.NET Core URLs
-ENV ASPNETCORE_URLS=http://+:8080
-ENV ASPNETCORE_ENVIRONMENT=Production
+# PYTHONPATH tells Python where to find the `app` package.
+ENV PYTHONPATH=/app/src
 
-ENTRYPOINT ["dotnet", "MorkosiaPrepaLeague.dll"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
