@@ -56,10 +56,6 @@ def get_db() -> DatabaseService:
 
 
 def get_current_user(request: Request) -> CurrentUser:
-    """
-    Reads the CurrentUser object that AuthenticationMiddleware placed on
-    request.state. Returns an unauthenticated public user if nothing is set.
-    """
     return getattr(request.state, "current_user", CurrentUser())
 
 
@@ -69,14 +65,6 @@ def get_current_user(request: Request) -> CurrentUser:
 
 
 def require_role(min_role: Role):
-    """
-    Dependency factory — mirrors the [MinRole] attribute from .NET.
-
-    Usage in a router:
-        current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN))
-
-    Raises 403 if the authenticated user's role is below the required level.
-    """
 
     def check(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
         if current_user.role < min_role:
