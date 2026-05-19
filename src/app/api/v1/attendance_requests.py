@@ -13,7 +13,7 @@ from app.services.database_service import DatabaseService
 router = APIRouter(prefix="/api/v1/attendance-requests", tags=["Attendance Requests"])
 
 
-@router.post("/")
+@router.post("")
 async def create_attendance_request(
     request: CreateAttendanceRequestRequest,
     db: DatabaseService = Depends(get_db),
