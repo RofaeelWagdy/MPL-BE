@@ -21,7 +21,7 @@ router = APIRouter(
 )
 
 
-@router.get("/")
+@router.get("")
 async def get_concrete_activities(
     transfer_window_id: str,
     from_date: Optional[date] = Query(default=None, alias="from"),
@@ -40,7 +40,7 @@ async def get_concrete_activities(
     return activities[start : start + page_size]
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def create_concrete_activity(
     transfer_window_id: str,
     request: CreateConcreteActivityRequest,
