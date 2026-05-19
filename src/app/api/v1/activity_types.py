@@ -20,7 +20,7 @@ async def get_activity_types_for_league(
     return await db.get_activity_types_for_league(league_id)
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def create_activity_type(
     request: CreateActivityTypeRequest,
     db: DatabaseService = Depends(get_db),
