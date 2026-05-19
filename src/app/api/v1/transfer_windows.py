@@ -11,7 +11,9 @@ from app.services.authorization import is_user_admin_for_league
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
 
-router = APIRouter(prefix="/api/leagues/{league_id}/transferwindows", tags=["Transfer Windows"])
+router = APIRouter(
+    prefix="/api/leagues/{league_id}/transferwindows", tags=["Transfer Windows"]
+)
 
 
 @router.get("/current")
@@ -29,15 +31,33 @@ async def get_current_transfer_window(
         league_id in current_user.member_leagues
     )
     if not has_access:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this league.")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You do not have access to this league."
+        )
 
     now = datetime.now(timezone.utc)
     window = await db.get_current_transfer_window(league_id)
 
     if window is None:
-        return {"message": "No transfer windows found", "is_active": False, "league_id": league_id, "current_time_utc": now}
+        return {
+            "message": "No transfer windows found",
+            "is_active": False,
+            "league_id": league_id,
+            "current_time_utc": now,
+        }
 
-    is_active = window.start_date <= now <= window.end_date
+    start_date_aware = (
+        window.start_date.replace(tzinfo=timezone.utc)
+        if window.start_date.tzinfo is None
+        else window.start_date
+    )
+    end_date_aware = (
+        window.end_date.replace(tzinfo=timezone.utc)
+        if window.end_date.tzinfo is None
+        else window.end_date
+    )
+
+    is_active = start_date_aware <= now <= end_date_aware
 
     return {
         "transfer_window": {
@@ -54,7 +74,7 @@ async def get_current_transfer_window(
     }
 
 
-@router.get("/")
+@router.get("")
 async def get_all_transfer_windows(
     league_id: str,
     db: DatabaseService = Depends(get_db),
@@ -86,20 +106,35 @@ async def create_transfer_window(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "League not found.")
 
     if not is_user_admin_for_league(current_user, league_id):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "You are not an admin of this league.")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You are not an admin of this league."
+        )
 
     now = datetime.now(timezone.utc)
 
     if request.end_date <= request.start_date:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "End date must be after start date.")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "End date must be after start date."
+        )
 
     if request.start_date <= now:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Start date must be in the future.")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Start date must be in the future."
+        )
 
     # Block if there is already an active window
     latest = await db.get_current_transfer_window(league_id)
-    if latest is not None and latest.end_date >= now:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "There is already an active transfer window.")
+    if latest is not None:
+        latest_end_date_aware = (
+            latest.end_date.replace(tzinfo=timezone.utc)
+            if latest.end_date.tzinfo is None
+            else latest.end_date
+        )
+        if latest_end_date_aware >= now:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "There is already an active transfer window.",
+            )
 
     window = TransferWindow(
         league_id=league_id,
