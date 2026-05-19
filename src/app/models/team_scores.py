@@ -12,6 +12,7 @@ from pydantic import BaseModel
 class PlayerActivityScore(BaseModel):
     activity_id: str = ""
     activity_name: str = ""
+    transfer_window_id: str =""
     date: str = ""
     points: int = 0
     potential_points: int = 0

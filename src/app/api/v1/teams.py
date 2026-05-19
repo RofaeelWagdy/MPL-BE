@@ -173,6 +173,7 @@ async def get_team_scores(
                 ps.activities.append(
                     PlayerActivityScore(
                         activity_id=activity.id,
+                        transfer_window_id=activity.transfer_window_id,
                         activity_name=activity_type.name,
                         date=str(activity.date),
                         points=points if qualifies else 0,
