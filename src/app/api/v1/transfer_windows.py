@@ -6,7 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.dependencies import get_db, require_role
 from app.models.role import Role
 from app.models.transfer_window import TransferWindow
-from app.schemas.requests import CreateTransferWindowRequest
+from app.schemas.requests import (
+    CreateTransferWindowRequest,
+    UpdateTransferWindowRequest,
+)
 from app.services.authorization import is_user_admin_for_league
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
@@ -153,4 +156,90 @@ async def create_transfer_window(
         "created_by_admin_id": created.created_by_admin_id,
         "version": created.ver,
         "created_at": now,
+    }
+
+
+@router.put("/{window_id}", status_code=status.HTTP_200_OK)
+async def update_transfer_window(
+    league_id: str,
+    window_id: str,
+    request: UpdateTransferWindowRequest,
+    db: DatabaseService = Depends(get_db),
+    current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN)),
+):
+    league = await db.get_league_by_id(league_id)
+    if league is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "League not found.")
+
+    if not is_user_admin_for_league(current_user, league_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You are not an admin of this league."
+        )
+
+    if request.end_date <= request.start_date:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "End date must be after start date."
+        )
+
+    window = await db.get_transfer_window_by_id(league_id, window_id)
+    if window is None or window.league_id != league_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Transfer window not found.")
+
+    window.start_date = request.start_date
+    window.end_date = request.end_date
+    await window.save()
+
+    return {
+        "id": window.id,
+        "league_id": window.league_id,
+        "start_date_utc": window.start_date,
+        "end_date_utc": window.end_date,
+        "window_number": window.window_number,
+        "created_by_admin_id": window.created_by_admin_id,
+        "version": window.ver,
+    }
+
+
+@router.post("/{window_id}/end", status_code=status.HTTP_200_OK)
+async def end_transfer_window(
+    league_id: str,
+    window_id: str,
+    db: DatabaseService = Depends(get_db),
+    current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN)),
+):
+    league = await db.get_league_by_id(league_id)
+    if league is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "League not found.")
+
+    if not is_user_admin_for_league(current_user, league_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You are not an admin of this league."
+        )
+
+    window = await db.get_transfer_window_by_id(league_id, window_id)
+    if window is None or window.league_id != league_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Transfer window not found.")
+
+    now = datetime.now(timezone.utc)
+    window.end_date = now
+
+    start_date_aware = (
+        window.start_date.replace(tzinfo=timezone.utc)
+        if window.start_date.tzinfo is None
+        else window.start_date
+    )
+
+    if start_date_aware > now:
+        window.start_date = now
+
+    await window.save()
+
+    return {
+        "id": window.id,
+        "league_id": window.league_id,
+        "start_date_utc": window.start_date,
+        "end_date_utc": window.end_date,
+        "window_number": window.window_number,
+        "created_by_admin_id": window.created_by_admin_id,
+        "version": window.ver,
     }

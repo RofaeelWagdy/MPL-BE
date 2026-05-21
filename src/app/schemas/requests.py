@@ -77,6 +77,11 @@ class CreateTransferWindowRequest(BaseModel):
     end_date: datetime
 
 
+class UpdateTransferWindowRequest(BaseModel):
+    start_date: datetime
+    end_date: datetime
+
+
 # ------------------------------------------------------------------
 # Teams
 # ------------------------------------------------------------------
