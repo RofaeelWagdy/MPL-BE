@@ -43,6 +43,10 @@ class UserRegistrationRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class UserLoginRequest(BaseModel):
+    username: str = Field(..., max_length=150)
+    password: str = Field(...)
+
 class UserUpdateRequest(BaseModel):
     full_name: Optional[str] = Field(default=None, min_length=2, max_length=100)
     user_class: Optional[str] = Field(default=None, alias="class")

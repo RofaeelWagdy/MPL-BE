@@ -1,5 +1,4 @@
 # File: src/app/middlewares/authentication.py
-import base64
 import logging
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -7,7 +6,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.config import get_settings
-from app.core.security import verify_password
+from app.core.security import verify_access_token
 from app.models.role import Role
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
@@ -25,7 +24,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
     Two auth methods supported:
       1. x-dev-key header → SuperAdmin access (dev/admin tool only).
-      2. Authorization: Basic <base64(username:password)> → standard user login.
+      2. Authorization: Bearer <jwt_token> → standard user login.
 
     If no valid credentials are provided, current_user is set to a public
     (unauthenticated) user. The authorization layer (dependencies) decides
@@ -44,28 +43,33 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             )
             return await call_next(request)
 
-        # 2. Basic authentication
+        # 2. Bearer authentication
         auth_header = request.headers.get("Authorization", "")
-        if auth_header.lower().startswith("basic "):
-            current_user = await self._authenticate_basic(auth_header)
+        if auth_header.lower().startswith("bearer "):
+            current_user = await self._authenticate_bearer(auth_header)
             if current_user:
                 request.state.current_user = current_user
                 return await call_next(request)
             # Bad credentials — return 401 immediately
-            response = Response("Invalid username or password", status_code=401)
+            response = Response("Invalid token", status_code=401)
             return response
 
         # 3. No credentials — let the authorization dependency decide if that's ok
         request.state.current_user = CurrentUser()
         return await call_next(request)
 
-    async def _authenticate_basic(self, auth_header: str) -> CurrentUser | None:
+    async def _authenticate_bearer(self, auth_header: str) -> CurrentUser | None:
         try:
-            encoded = auth_header[len("Basic "):].strip()
-            decoded = base64.b64decode(encoded).decode("utf-8")
-            username, password = decoded.split(":", 1)
+            token = auth_header[len("Bearer "):].strip()
+            payload = verify_access_token(token)
+            if not payload:
+                logger.warning("Invalid JWT token.")
+                return None
+            username = payload.get("sub")
+            if not username:
+                return None
         except Exception:
-            logger.warning("Malformed Basic Auth header.")
+            logger.warning("Malformed Bearer Auth header.")
             return None
 
         db = DatabaseService()
@@ -74,14 +78,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             logger.warning("Login attempt for unknown user: %s", username)
             return None
 
-        if not verify_password(password, user.hashed_password):
-            logger.warning("Wrong password for user: %s", username)
-            return None
-
         # Users who admin at least one league are LeagueAdmins
         role = Role.LEAGUE_ADMIN if user.leagues_admin else Role.USER
 
-        logger.info("User %s authenticated with role %s", username, role)
         return CurrentUser(
             user_id=user.id,
             username=user.username,

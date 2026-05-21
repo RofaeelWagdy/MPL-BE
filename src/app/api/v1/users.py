@@ -10,10 +10,12 @@ from app.schemas.requests import (
     RemoveRoleRequest,
     UserRegistrationRequest,
     UserUpdateRequest,
+    UserLoginRequest,
 )
 from app.services.authorization import can_user_manage_target_user, get_admin_accessible_league_ids, is_user_admin_for_league
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
+from app.core.security import hash_password, verify_password, create_access_token
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -37,19 +39,22 @@ async def register_user(
 
 @router.post("/login")
 async def login(
+    request: UserLoginRequest,
     db: DatabaseService = Depends(get_db),
-    current_user: CurrentUser = Depends(get_current_user),
 ):
     """
-    The authentication middleware already validated credentials and set current_user.
-    This endpoint simply returns the full user record for the authenticated user.
+    Authenticate user and return a JWT token along with user details.
     """
-    if not current_user.user_id:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required.")
-    user = await db.get_user_by_id(current_user.user_id)
-    if user is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found.")
-    return user
+    user = await db.get_user_by_username(request.username)
+    if not user or not verify_password(request.password, user.hashed_password):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid username or password")
+    
+    access_token = create_access_token(data={"sub": user.username})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }
 
 
 @router.get("/me")
