@@ -63,7 +63,7 @@ async def create_concrete_activity(
     return await db.add_concrete_activity(activity)
 
 
-@router.post("/{activity_id}")
+@router.put("/{activity_id}")
 async def update_concrete_activity(
     transfer_window_id: str,
     activity_id: str,
