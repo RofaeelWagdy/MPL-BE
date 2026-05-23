@@ -7,6 +7,9 @@ from fastapi.security import APIKeyHeader
 from fastapi import Depends
 from app.core.config import get_settings
 from app.core.database import connect, disconnect
+from app.models.league import League
+from app.models.user import User
+from app.core.security import hash_password
 
 settings = get_settings()
 
@@ -14,10 +17,37 @@ dev_key_scheme = APIKeyHeader(
     name="x-dev-key", auto_error=False, description="SuperAdmin Master Key"
 )
 
+
+async def run_seeding():
+    """Seed initial league and admin user if they don't exist."""
+    # Check if any leagues exist
+    league_count = await League.find_all().count()
+    if league_count == 0:
+        new_league = League(name="E3dady League", type="ActivityPoints")
+        await new_league.insert()
+        league_id = new_league.id
+    else:
+        existing_league = await League.find_all().first_or_none()
+        league_id = existing_league.id if existing_league else None
+
+    # Check if any users exist
+    user_count = await User.find_all().count()
+    if user_count == 0:
+        new_user = User(
+            username="new_admin",
+            full_name="New Admin",
+            user_class="admin",
+            hashed_password=hash_password("Admin@123"),
+            leagues_admin=[league_id] if league_id else [],
+        )
+        await new_user.insert()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Startup: open MongoDB connection. Shutdown: close it cleanly."""
     await connect()
+    await run_seeding()
     yield
     await disconnect()
 
@@ -51,6 +81,7 @@ def create_app() -> FastAPI:
     # Must be added after CORSMiddleware.
     # ------------------------------------------------------------------
     from app.middlewares.authentication import AuthenticationMiddleware
+
     app.add_middleware(AuthenticationMiddleware)
 
     # ------------------------------------------------------------------
@@ -79,9 +110,14 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------
     @app.get("/", tags=["Health"])
     async def health_check():
-        return {"status": "healthy", "app": settings.app_name, "version": settings.app_version}
+        return {
+            "status": "healthy",
+            "app": settings.app_name,
+            "version": settings.app_version,
+        }
 
     return app
+
 
 # python -m uvicorn app.main:app --reload
 app = create_app()
