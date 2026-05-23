@@ -78,13 +78,19 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             logger.warning("Login attempt for unknown user: %s", username)
             return None
 
-        # Users who admin at least one league are LeagueAdmins
-        role = Role.LEAGUE_ADMIN if user.leagues_admin else Role.USER
+        role = Role.USER
+        if user.is_super_admin:
+            role = Role.SUPER_ADMIN
+        elif user.leagues_admin:
+            role = Role.LEAGUE_ADMIN
+        elif user.leagues_viewer:
+            role = Role.VIEWER
 
         return CurrentUser(
             user_id=user.id,
             username=user.username,
             role=role,
             admin_leagues=list(user.leagues_admin),
+            viewer_leagues=list(user.leagues_viewer),
             member_leagues=list(user.leagues_member),
         )

@@ -58,13 +58,13 @@ class UserUpdateRequest(BaseModel):
 class AssignRoleRequest(BaseModel):
     user_id: str
     league_id: str
-    role: str  # "admin" or "member"
+    role: str  # "admin", "member", or "viewer"
 
 
 class RemoveRoleRequest(BaseModel):
     user_id: str
     league_id: str
-    role: str  # "admin" or "member"
+    role: str  # "admin", "member", or "viewer"
 
 
 # ------------------------------------------------------------------

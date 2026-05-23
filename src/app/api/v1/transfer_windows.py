@@ -10,7 +10,7 @@ from app.schemas.requests import (
     CreateTransferWindowRequest,
     UpdateTransferWindowRequest,
 )
-from app.services.authorization import is_user_admin_for_league
+from app.services.authorization import can_user_read_league, is_user_admin_for_league
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
 
@@ -29,10 +29,8 @@ async def get_current_transfer_window(
     if league is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "League not found.")
 
-    # Check the user belongs to this league (as admin or member)
-    has_access = is_user_admin_for_league(current_user, league_id) or (
-        league_id in current_user.member_leagues
-    )
+    # Check the user belongs to this league (admin, viewer, or member)
+    has_access = can_user_read_league(current_user, league_id)
     if not has_access:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "You do not have access to this league."
@@ -83,6 +81,10 @@ async def get_all_transfer_windows(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    if not can_user_read_league(current_user, league_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You do not have access to this league."
+        )
     windows = await db.get_all_transfer_windows(league_id)
     return [
         {

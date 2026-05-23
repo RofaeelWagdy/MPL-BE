@@ -5,7 +5,7 @@ from app.core.dependencies import get_db, require_role
 from app.models.league import League, TeamPosition
 from app.models.role import Role
 from app.schemas.requests import ActivityPointsLeagueConfigUpdateDto, CreateLeagueRequest
-from app.services.authorization import is_user_admin_for_league
+from app.services.authorization import can_user_read_league, is_user_admin_for_league
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
 
@@ -34,6 +34,8 @@ async def get_league_by_id(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    if not can_user_read_league(current_user, league_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this league.")
     league = await db.get_league_by_id(league_id)
     if league is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"League '{league_id}' not found.")

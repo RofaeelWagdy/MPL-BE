@@ -7,6 +7,7 @@ from app.core.dependencies import get_db, require_role
 from app.models.attendance_request import AttendanceRequest, AttendanceRequestStatus
 from app.models.role import Role
 from app.schemas.requests import CreateAttendanceRequestRequest, ProcessAttendanceRequestRequest
+from app.services.authorization import can_user_read_league
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
 
@@ -19,6 +20,10 @@ async def create_attendance_request(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    if current_user.is_viewer:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Viewers cannot create attendance requests.")
+    if not can_user_read_league(current_user, request.league_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this league.")
     # Block if student is already a participant
     activity = await db.get_concrete_activity_by_id(request.activity_id, request.transfer_window_id)
     if activity and request.student_user_id in activity.participant_ids:
@@ -53,6 +58,8 @@ async def get_pending_requests(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    if not can_user_read_league(current_user, league_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this league.")
     return await db.get_pending_attendance_requests_for_league(league_id)
 
 
@@ -63,6 +70,8 @@ async def get_student_requests(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    if not can_user_read_league(current_user, league_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this league.")
     return await db.get_attendance_requests_for_student(league_id, student_user_id)
 
 
@@ -73,9 +82,13 @@ async def process_request(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    if current_user.is_viewer:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Viewers cannot process attendance requests.")
     attendance_request = await db.get_attendance_request_by_id(request.request_id)
     if attendance_request is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Attendance request not found.")
+    if not can_user_read_league(current_user, attendance_request.league_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this league.")
 
     if attendance_request.status != AttendanceRequestStatus.PENDING:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "This request has already been processed.")

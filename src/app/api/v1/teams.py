@@ -16,7 +16,7 @@ from app.models.team_scores import (
     TeamScoresResponse,
 )
 from app.schemas.requests import PickTeamRequest
-from app.services.authorization import can_user_pick_team_from_league
+from app.services.authorization import can_user_pick_team_from_league, can_user_read_league
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
 
@@ -29,6 +29,8 @@ async def get_available_players(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    if not can_user_read_league(current_user, league_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this league.")
     league = await db.get_league_by_id(league_id)
     if league is None:
         raise HTTPException(
@@ -79,6 +81,8 @@ async def get_my_team(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    if not can_user_read_league(current_user, league_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this league.")
     if window_id:
         window = await db.get_transfer_window_by_id(league_id, window_id)
     else:
@@ -103,6 +107,8 @@ async def get_team_scores(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    if not can_user_read_league(current_user, league_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this league.")
     league = await db.get_league_by_id(league_id)
     if league is None:
         raise HTTPException(

@@ -14,6 +14,7 @@ class CurrentUser:
     username: str = ""
     role: Role = Role.PUBLIC
     admin_leagues: list[str] = field(default_factory=list)
+    viewer_leagues: list[str] = field(default_factory=list)
     member_leagues: list[str] = field(default_factory=list)
 
     @property
@@ -23,6 +24,10 @@ class CurrentUser:
     @property
     def is_league_admin(self) -> bool:
         return self.role == Role.LEAGUE_ADMIN
+
+    @property
+    def is_viewer(self) -> bool:
+        return self.role == Role.VIEWER
 
     @property
     def is_authenticated(self) -> bool:

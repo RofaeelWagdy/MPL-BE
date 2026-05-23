@@ -12,6 +12,7 @@ from app.schemas.requests import (
     CreateConcreteActivityRequest,
     UpdateConcreteActivityRequest,
 )
+from app.services.authorization import can_user_read_league, is_user_admin_for_league
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
 
@@ -32,6 +33,13 @@ async def get_concrete_activities(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
+    window = await db.get_transfer_window_by_id_any(transfer_window_id)
+    if window is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Transfer window not found.")
+    if not can_user_read_league(current_user, window.league_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You do not have access to this league."
+        )
     page_size = min(page_size, 100)
     activities = await db.get_concrete_activities_for_transfer_window(
         transfer_window_id, from_date, to_date, activity_type_id
@@ -45,10 +53,21 @@ async def create_concrete_activity(
     transfer_window_id: str,
     request: CreateConcreteActivityRequest,
     db: DatabaseService = Depends(get_db),
-    current_user: CurrentUser = Depends(require_role(Role.USER)),
+    current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN)),
 ):
     if request.transfer_window_id != transfer_window_id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "transfer_window_id in body must match the route.")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "transfer_window_id in body must match the route.",
+        )
+
+    window = await db.get_transfer_window_by_id_any(transfer_window_id)
+    if window is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Transfer window not found.")
+    if not is_user_admin_for_league(current_user, window.league_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You are not an admin of this league."
+        )
 
     activity_type = await db.get_activity_type_by_id(request.activity_type_id)
     if activity_type is None:
@@ -69,10 +88,20 @@ async def update_concrete_activity(
     activity_id: str,
     request: UpdateConcreteActivityRequest,
     db: DatabaseService = Depends(get_db),
-    current_user: CurrentUser = Depends(require_role(Role.USER)),
+    current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN)),
 ):
     if request.id != activity_id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Activity ID in body must match the route.")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Activity ID in body must match the route."
+        )
+
+    window = await db.get_transfer_window_by_id_any(transfer_window_id)
+    if window is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Transfer window not found.")
+    if not is_user_admin_for_league(current_user, window.league_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You are not an admin of this league."
+        )
 
     existing = await db.get_concrete_activity_by_id(activity_id, transfer_window_id)
     if existing is None:
@@ -90,15 +119,24 @@ async def delete_concrete_activity(
     transfer_window_id: str,
     activity_id: str,
     db: DatabaseService = Depends(get_db),
-    current_user: CurrentUser = Depends(require_role(Role.USER)),
+    current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN)),
 ):
+    window = await db.get_transfer_window_by_id_any(transfer_window_id)
+    if window is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Transfer window not found.")
+    if not is_user_admin_for_league(current_user, window.league_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You are not an admin of this league."
+        )
     existing = await db.get_concrete_activity_by_id(activity_id, transfer_window_id)
     if existing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Concrete activity not found.")
 
     deleted = await db.delete_concrete_activity(activity_id, transfer_window_id)
     if not deleted:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to delete concrete activity.")
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to delete concrete activity."
+        )
 
 
 @router.post("/{activity_id}/participants")
@@ -107,12 +145,21 @@ async def add_participant(
     activity_id: str,
     request: AddParticipantRequest,
     db: DatabaseService = Depends(get_db),
-    current_user: CurrentUser = Depends(require_role(Role.USER)),
+    current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN)),
 ):
+    window = await db.get_transfer_window_by_id_any(transfer_window_id)
+    if window is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Transfer window not found.")
+    if not is_user_admin_for_league(current_user, window.league_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You are not an admin of this league."
+        )
     if not request.participant_id.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "participant_id is required.")
 
-    success = await db.add_participant_to_concrete_activity(activity_id, transfer_window_id, request.participant_id)
+    success = await db.add_participant_to_concrete_activity(
+        activity_id, transfer_window_id, request.participant_id
+    )
     if not success:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Concrete activity not found.")
 
@@ -125,9 +172,18 @@ async def remove_participant(
     activity_id: str,
     participant_id: str,
     db: DatabaseService = Depends(get_db),
-    current_user: CurrentUser = Depends(require_role(Role.USER)),
+    current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN)),
 ):
-    success = await db.remove_participant_from_concrete_activity(activity_id, transfer_window_id, participant_id)
+    window = await db.get_transfer_window_by_id_any(transfer_window_id)
+    if window is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Transfer window not found.")
+    if not is_user_admin_for_league(current_user, window.league_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You are not an admin of this league."
+        )
+    success = await db.remove_participant_from_concrete_activity(
+        activity_id, transfer_window_id, participant_id
+    )
     if not success:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Concrete activity not found.")
 

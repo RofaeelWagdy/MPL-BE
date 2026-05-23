@@ -11,6 +11,28 @@ def is_user_admin_for_league(user: CurrentUser, league_id: str) -> bool:
     return league_id in user.admin_leagues
 
 
+def is_user_viewer_for_league(user: CurrentUser, league_id: str) -> bool:
+    """Viewers can read leagues they are assigned to."""
+    if not league_id:
+        return False
+    if user.is_super_admin or user.is_league_admin:
+        return True
+    if user.is_viewer:
+        return league_id in user.viewer_leagues
+    return False
+
+
+def can_user_read_league(user: CurrentUser, league_id: str) -> bool:
+    """Admins, viewers, and members can read their league data."""
+    if not league_id:
+        return False
+    if user.is_super_admin or user.is_league_admin:
+        return True
+    if user.is_viewer and league_id in user.viewer_leagues:
+        return True
+    return league_id in user.member_leagues
+
+
 def get_admin_accessible_league_ids(
     user: CurrentUser, all_league_ids: Optional[list[str]] = None
 ) -> list[str]:
@@ -44,6 +66,6 @@ def can_user_pick_team_from_league(user: CurrentUser, league_id: str) -> bool:
     """Only regular members can pick teams. Admins and SuperAdmins cannot."""
     if not league_id:
         return False
-    if user.is_super_admin or user.is_league_admin:
+    if user.is_super_admin or user.is_league_admin or user.is_viewer:
         return False
     return league_id in user.member_leagues

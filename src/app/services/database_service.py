@@ -84,6 +84,17 @@ class DatabaseService:
             ]
         }).to_list()
 
+    async def get_all_accounts_for_leagues(self, league_ids: list[str]) -> list[User]:
+        if not league_ids:
+            return []
+        return await User.find({
+            "$or": [
+                {"leagues_admin": {"$in": league_ids}},
+                {"leagues_member": {"$in": league_ids}},
+                {"leagues_viewer": {"$in": league_ids}},
+            ]
+        }).to_list()
+
     async def update_user(self, user: User) -> Optional[User]:
         existing = await User.get(user.id)
         if existing is None:
@@ -121,6 +132,11 @@ class DatabaseService:
             TransferWindow.id == window_id,
             TransferWindow.league_id == league_id,
         )
+
+    async def get_transfer_window_by_id_any(
+        self, window_id: str
+    ) -> Optional[TransferWindow]:
+        return await TransferWindow.get(window_id)
 
     async def create_transfer_window(self, transfer_window: TransferWindow) -> TransferWindow:
         if not transfer_window.id:
