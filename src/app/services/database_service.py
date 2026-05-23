@@ -95,6 +95,9 @@ class DatabaseService:
             ]
         }).to_list()
 
+    async def get_all_users(self) -> list[User]:
+        return await User.find_all().to_list()
+
     async def update_user(self, user: User) -> Optional[User]:
         existing = await User.get(user.id)
         if existing is None:

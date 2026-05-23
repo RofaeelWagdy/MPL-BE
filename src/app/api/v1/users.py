@@ -77,10 +77,16 @@ async def get_all_users(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN)),
 ):
-    all_leagues = await db.get_all_leagues()
-    all_league_ids = [league.id for league in all_leagues]
-    accessible_ids = get_admin_accessible_league_ids(current_user, all_league_ids)
-    return await db.get_all_accounts_for_leagues(accessible_ids)
+    if not current_user.is_super_admin:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You do not have permission to view all users."
+        )
+    all_users = await db.get_all_users()
+    return all_users
+    # all_leagues = await db.get_all_leagues()
+    # all_league_ids = [league.id for league in all_leagues]
+    # accessible_ids = get_admin_accessible_league_ids(current_user, all_league_ids)
+    # return await db.get_all_accounts_for_leagues(accessible_ids)
 
 
 @router.get("/{user_id}")
