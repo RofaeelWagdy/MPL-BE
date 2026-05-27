@@ -74,11 +74,22 @@ async def get_current_user_profile(
 
 @router.get("/all")
 async def get_all_users(
+    league_id: str | None = Query(default=None),
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.LEAGUE_ADMIN)),
 ):
     if current_user.is_super_admin:
+        if league_id:
+            return await db.get_all_accounts_for_leagues([league_id])
         return await db.get_all_users()
+
+    if league_id:
+        if not is_user_admin_for_league(current_user, league_id):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "You do not have permission to view users for this league.",
+            )
+        return await db.get_all_accounts_for_leagues([league_id])
 
     all_leagues = await db.get_all_leagues()
     all_league_ids = [league.id for league in all_leagues]
