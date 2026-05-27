@@ -98,6 +98,58 @@ class DatabaseService:
     async def get_all_users(self) -> list[User]:
         return await User.find_all().to_list()
 
+    async def get_users_directory(
+        self, role: Optional[str] = None, league_id: Optional[str] = None
+    ) -> list[User]:
+        filters: dict = {}
+
+        if role:
+            if role == "super_admin":
+                filters["is_super_admin"] = True
+            elif role == "admin":
+                filters["leagues_admin"] = {
+                    "$exists": True,
+                    "$ne": [],
+                }
+            elif role == "viewer":
+                filters["leagues_viewer"] = {
+                    "$exists": True,
+                    "$ne": [],
+                }
+            elif role == "member":
+                filters["leagues_member"] = {
+                    "$exists": True,
+                    "$ne": [],
+                }
+            elif role == "unassigned":
+                filters["is_super_admin"] = False
+                filters["leagues_admin"] = {"$size": 0}
+                filters["leagues_viewer"] = {"$size": 0}
+                filters["leagues_member"] = {"$size": 0}
+            else:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    "Role must be 'super_admin', 'admin', 'viewer', 'member', or 'unassigned'.",
+                )
+
+        if league_id:
+            if role == "admin":
+                filters["leagues_admin"] = league_id
+            elif role == "viewer":
+                filters["leagues_viewer"] = league_id
+            elif role == "member":
+                filters["leagues_member"] = league_id
+            elif role in {"unassigned", "super_admin"}:
+                return []
+            else:
+                filters["$or"] = [
+                    {"leagues_admin": league_id},
+                    {"leagues_viewer": league_id},
+                    {"leagues_member": league_id},
+                ]
+
+        return await User.find(filters).to_list()
+
     async def update_user(self, user: User) -> Optional[User]:
         existing = await User.get(user.id)
         if existing is None:

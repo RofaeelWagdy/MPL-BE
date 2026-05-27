@@ -1,5 +1,5 @@
 # File: src/app/api/v1/users.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.dependencies import get_current_user, get_db, require_role
 from app.core.security import hash_password
@@ -83,10 +83,21 @@ async def get_all_users(
         )
     all_users = await db.get_all_users()
     return all_users
+
     # all_leagues = await db.get_all_leagues()
     # all_league_ids = [league.id for league in all_leagues]
     # accessible_ids = get_admin_accessible_league_ids(current_user, all_league_ids)
     # return await db.get_all_accounts_for_leagues(accessible_ids)
+
+
+@router.get("/directory")
+async def get_directory_users(
+    role: str | None = Query(default=None),
+    league_id: str | None = Query(default=None),
+    db: DatabaseService = Depends(get_db),
+    current_user: CurrentUser = Depends(require_role(Role.SUPER_ADMIN)),
+):
+    return await db.get_users_directory(role=role, league_id=league_id)
 
 
 @router.get("/{user_id}")
