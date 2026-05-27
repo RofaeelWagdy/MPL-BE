@@ -27,14 +27,32 @@ async def create_league(
     league = League(name=request.name, type=request.type)
     return await db.add_league(league)
 
-@router.get("", response_model=list[League])
+
+@router.get("", response_model=list[LeagueSummaryResponse])
 async def get_all_leagues(
     db: DatabaseService = Depends(get_db),
     current_user: CurrentUser = Depends(require_role(Role.USER)),
 ):
     if not current_user.is_super_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have permission to view all leagues.")
-    return await db.get_all_leagues()
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You do not have permission to view all leagues."
+        )
+    leagues = await db.get_all_leagues()
+    summaries: list[LeagueSummaryResponse] = []
+    for league in leagues:
+        counts = await db.get_league_user_counts(league.id)
+        summaries.append(
+            LeagueSummaryResponse(
+                id=league.id,
+                name=league.name,
+                type=league.type,
+                admins_count=counts.get("admins", 0),
+                members_count=counts.get("members", 0),
+                viewers_count=counts.get("viewers", 0),
+            )
+        )
+    return summaries
+
 
 @router.get("/{league_id}", response_model=League)
 async def get_league_by_id(
