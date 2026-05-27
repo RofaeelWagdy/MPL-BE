@@ -167,6 +167,14 @@ async def update_activity_points_config(
         league.team_positions = [TeamPosition(name=p.name, count=p.count) for p in config.team_positions]
         updated = True
 
+    if config.name is not None:
+        if not config.name.strip():
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "League name cannot be empty.")
+        if await db.league_name_exists(config.name):
+            raise HTTPException(status.HTTP_409_CONFLICT, f"A league named '{config.name}' already exists.")
+        league.name = config.name
+        updated = True
+
     if config.initial_budget is not None:
         league.initial_budget = config.initial_budget
         updated = True

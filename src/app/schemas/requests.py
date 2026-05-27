@@ -27,6 +27,7 @@ class CreateLeagueRequest(BaseModel):
 
 
 class ActivityPointsLeagueConfigUpdateDto(BaseModel):
+    name: Optional[str] = None
     initial_budget: Optional[int] = Field(default=None, ge=0)
     team_positions: Optional[List[TeamPositionSchema]] = None
     default_player_price: Optional[int] = Field(default=None, ge=0)
