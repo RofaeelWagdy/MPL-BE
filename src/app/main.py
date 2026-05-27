@@ -19,28 +19,25 @@ dev_key_scheme = APIKeyHeader(
 
 
 async def run_seeding():
-    """Seed initial league and admin user if they don't exist."""
-    # Check if any leagues exist
-    league_count = await League.find_all().count()
-    if league_count == 0:
-        new_league = League(name="E3dady League", type="ActivityPoints")
-        await new_league.insert()
-        league_id = new_league.id
-    else:
-        existing_league = await League.find_all().first_or_none()
-        league_id = existing_league.id if existing_league else None
+    """Seed a SuperAdmin user if one does not exist."""
+    super_admin_count = await User.find(User.is_super_admin == True).count()
+    if super_admin_count > 0:
+        return
 
-    # Check if any users exist
-    user_count = await User.find_all().count()
-    if user_count == 0:
-        new_user = User(
-            username="new_admin",
-            full_name="New Admin",
-            user_class="admin",
-            hashed_password=hash_password("Admin@123"),
-            leagues_admin=[league_id] if league_id else [],
-        )
-        await new_user.insert()
+    full_name = settings.super_admin_full_name.strip()
+    username = settings.super_admin_username.strip()
+    password = settings.super_admin_password
+    if not full_name or not username or not password:
+        return
+
+    new_user = User(
+        username=username,
+        full_name=full_name,
+        user_class="admin",
+        hashed_password=hash_password(password),
+        is_super_admin=True,
+    )
+    await new_user.insert()
 
 
 @asynccontextmanager

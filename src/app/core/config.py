@@ -99,6 +99,22 @@ class Settings(BaseSettings):
     )
 
     # ------------------------------------------------------------------
+    # Super admin seed user
+    # ------------------------------------------------------------------
+    super_admin_full_name: str = Field(
+        default="",
+        description="Full name for the seeded SuperAdmin account.",
+    )
+    super_admin_username: str = Field(
+        default="",
+        description="Username for the seeded SuperAdmin account.",
+    )
+    super_admin_password: str = Field(
+        default="",
+        description="Plain-text password for the seeded SuperAdmin account.",
+    )
+
+    # ------------------------------------------------------------------
     # Computed helpers
     # ------------------------------------------------------------------
     @computed_field  # type: ignore[misc]
