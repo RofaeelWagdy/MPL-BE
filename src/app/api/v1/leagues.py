@@ -5,6 +5,7 @@ from app.core.dependencies import get_db, require_role
 from app.models.league import League, TeamPosition
 from app.models.role import Role
 from app.schemas.requests import ActivityPointsLeagueConfigUpdateDto, CreateLeagueRequest
+from app.schemas.responses import LeagueSummaryResponse
 from app.services.authorization import can_user_read_league, is_user_admin_for_league
 from app.services.current_user import CurrentUser
 from app.services.database_service import DatabaseService
