@@ -24,7 +24,73 @@ async def create_league(
     if await db.league_name_exists(request.name):
         raise HTTPException(status.HTTP_409_CONFLICT, f"A league named '{request.name}' already exists.")
 
-    league = League(name=request.name, type=request.type)
+    if any(not p.name.strip() or p.count < 1 for p in request.team_positions):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "All positions must have a name and a positive count.",
+        )
+
+    names = [p.name.lower() for p in request.team_positions]
+    if len(names) != len(set(names)):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Position names must be unique."
+        )
+
+    if request.player_price_overrides is not None:
+        if any(v < 0 for v in request.player_price_overrides.values()):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "All prices in player_price_overrides must be non-negative.",
+            )
+
+    if request.budget_overrides is not None:
+        if any(v <= 0 for v in request.budget_overrides.values()):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "All values in budget_overrides must be positive.",
+            )
+
+    if request.member_position_ownership_caps is not None:
+        for member_id, position_caps in request.member_position_ownership_caps.items():
+            if not member_id.strip():
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST, "Member user ID cannot be empty."
+                )
+            if not position_caps:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Position caps for member '{member_id}' cannot be empty.",
+                )
+            for pos_name, cap in position_caps.items():
+                if not pos_name.strip():
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST, "Position name cannot be empty."
+                    )
+                if cap < 0:
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        "Ownership cap values must be non-negative.",
+                    )
+                valid = [p.name for p in request.team_positions]
+                if pos_name not in valid:
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        f"Position '{pos_name}' is not defined in this league's team structure.",
+                    )
+
+    league = League(
+        name=request.name,
+        type=request.type,
+        initial_budget=request.initial_budget,
+        team_positions=[
+            TeamPosition(name=p.name, count=p.count) for p in request.team_positions
+        ],
+        default_player_price=request.default_player_price,
+        default_ownership_cap=request.default_ownership_cap,
+        player_price_overrides=request.player_price_overrides,
+        budget_overrides=request.budget_overrides,
+        member_position_ownership_caps=request.member_position_ownership_caps,
+    )
     return await db.add_league(league)
 
 

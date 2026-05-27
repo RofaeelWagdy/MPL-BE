@@ -17,6 +17,13 @@ class TeamPositionSchema(BaseModel):
 class CreateLeagueRequest(BaseModel):
     name: str
     type: str  # "ActivityPoints" or "H2H"
+    initial_budget: int = Field(ge=0)
+    team_positions: List[TeamPositionSchema]
+    default_player_price: int = Field(ge=0)
+    default_ownership_cap: int = Field(ge=0)
+    player_price_overrides: Optional[Dict[str, int]] = None
+    budget_overrides: Optional[Dict[str, int]] = None
+    member_position_ownership_caps: Optional[Dict[str, Dict[str, int]]] = None
 
 
 class ActivityPointsLeagueConfigUpdateDto(BaseModel):
