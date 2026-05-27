@@ -42,6 +42,19 @@ class DatabaseService:
     async def get_all_leagues(self) -> list[League]:
         return await League.find_all().to_list()
 
+    async def get_league_user_counts(self, league_id: str) -> dict[str, int]:
+        if not league_id:
+            return {"admins": 0, "members": 0, "viewers": 0}
+
+        admins = await User.find({"leagues_admin": league_id}).count()
+        members = await User.find({"leagues_member": league_id}).count()
+        viewers = await User.find({"leagues_viewer": league_id}).count()
+        return {
+            "admins": int(admins),
+            "members": int(members),
+            "viewers": int(viewers),
+        }
+
     async def update_league(self, league: League) -> bool:
         existing = await League.get(league.id)
         if existing is None:
