@@ -135,8 +135,8 @@ async def get_league_by_id(
     return league
 
 
-@router.put("/{league_id}/activitypoints-config", status_code=status.HTTP_200_OK)
-async def update_activity_points_config(
+@router.put("/{league_id}", status_code=status.HTTP_200_OK)
+async def update_league(
     league_id: str,
     config: ActivityPointsLeagueConfigUpdateDto,
     db: DatabaseService = Depends(get_db),
