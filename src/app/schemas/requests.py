@@ -75,6 +75,10 @@ class RemoveRoleRequest(BaseModel):
     role: str  # "admin", "member", or "viewer"
 
 
+class AssignSuperAdminRequest(BaseModel):
+    user_id: str
+
+
 # ------------------------------------------------------------------
 # Transfer Windows
 # ------------------------------------------------------------------

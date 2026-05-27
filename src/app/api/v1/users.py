@@ -7,6 +7,7 @@ from app.models.role import Role
 from app.models.user import User
 from app.schemas.requests import (
     AssignRoleRequest,
+    AssignSuperAdminRequest,
     RemoveRoleRequest,
     UserRegistrationRequest,
     UserUpdateRequest,
@@ -217,6 +218,33 @@ async def assign_role(
 
     return {
         "message": f"Role '{request.role}' assigned for league '{request.league_id}'.",
+        "user_id": user.id,
+    }
+
+
+@router.post("/assign-super-admin")
+async def assign_super_admin(
+    request: AssignSuperAdminRequest,
+    db: DatabaseService = Depends(get_db),
+    current_user: CurrentUser = Depends(require_role(Role.SUPER_ADMIN)),
+):
+    user = await db.get_user_by_id(request.user_id)
+    if user is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"User '{request.user_id}' not found."
+        )
+
+    if not user.is_super_admin:
+        user.is_super_admin = True
+        updated = await db.update_user(user)
+        if updated is None:
+            raise HTTPException(
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "Failed to grant super admin role.",
+            )
+
+    return {
+        "message": "Super admin role granted.",
         "user_id": user.id,
     }
 
