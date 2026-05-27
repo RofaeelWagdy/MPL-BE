@@ -136,7 +136,9 @@ async def update_user(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"User '{user_id}' not found.")
 
     if not can_user_manage_target_user(
-        current_user, user_id, list(user.leagues_member)
+        current_user,
+        user_id,
+        list({*user.leagues_member, *user.leagues_viewer, *user.leagues_admin}),
     ):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "You do not have permission to update this user."

@@ -45,13 +45,13 @@ def get_admin_accessible_league_ids(
 def can_user_manage_target_user(
     current_user: CurrentUser,
     target_user_id: str,
-    target_user_leagues_member: list[str],
+    target_user_league_ids: list[str],
 ) -> bool:
     """
     A user can manage another user if:
     - They are a SuperAdmin, OR
     - They are managing themselves, OR
-    - They are a LeagueAdmin for any league the target user is a member of.
+    - They are a LeagueAdmin for any league the target user belongs to.
     """
     if not target_user_id:
         return False
@@ -59,7 +59,9 @@ def can_user_manage_target_user(
         return True
     if not current_user.is_league_admin:
         return False
-    return any(league in target_user_leagues_member for league in current_user.admin_leagues)
+    return any(
+        league_id in target_user_league_ids for league_id in current_user.admin_leagues
+    )
 
 
 def can_user_pick_team_from_league(user: CurrentUser, league_id: str) -> bool:
